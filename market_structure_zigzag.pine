@@ -367,10 +367,14 @@ draw_structure(array<StructurePoint> points,
                string marker_size) =>
 
     int n = array.size(points)
+    int max_lines = 200  // 最大绘制线段数，避免 bar_index 超出限制
 
     if n >= 2
+        // 计算起始索引，只绘制最近的部分
+        int start_idx = math.max(1, n - max_lines)
+
         // 绘制连接线
-        for i = 1 to n - 1
+        for i = start_idx to n - 1
             StructurePoint pt1 = array.get(points, i - 1)
             StructurePoint pt2 = array.get(points, i)
 
@@ -388,10 +392,10 @@ draw_structure(array<StructurePoint> points,
             line.new(pt1.bar_idx, pt1.price, pt2.bar_idx, pt2.price,
                      color=line_color, width=line_width, style=line_style)
 
-        // 绘制标注(只绘制首尾点避免重复)
+        // 绘制标注(只绘制最近显示范围内的首尾点)
         if show_markers
-            // 第一个点
-            StructurePoint first_pt = array.get(points, 0)
+            // 范围内的第一个点
+            StructurePoint first_pt = array.get(points, start_idx - 1)
             label.new(first_pt.bar_idx, first_pt.price, "",
                       color=first_pt.is_high ? marker_high_color : marker_low_color,
                       style=first_pt.is_high ? label.style_label_down : label.style_label_up,
