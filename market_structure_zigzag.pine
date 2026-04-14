@@ -360,7 +360,7 @@ draw_structure(array<StructurePoint> points,
                color bull_color, color bear_color, color neutral_color,
                int transparency, int line_width, int line_style,
                bool show_markers, color marker_high_color, color marker_low_color,
-               size marker_size) =>
+               string marker_size) =>
 
     int n = array.size(points)
 
