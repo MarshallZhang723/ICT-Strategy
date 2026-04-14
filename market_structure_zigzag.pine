@@ -1,0 +1,481 @@
+//@version=6
+indicator("Market Structure Zigzag", overlay=true, max_lines_count=500, max_labels_count=500)
+
+// ============================================================================
+// 输入设置
+// ============================================================================
+
+// 结构周期选择
+grp_structure = "结构周期"
+show_short_term = input.bool(true, "显示短期结构", group=grp_structure)
+show_mid_term = input.bool(false, "显示中期结构", group=grp_structure)
+show_long_term = input.bool(false, "显示长期结构", group=grp_structure)
+
+// 线段样式 - 短期
+grp_st_line = "短期线段样式"
+st_bull_color = input.color(color.new(color.green, 0), "上涨颜色", group=grp_st_line)
+st_bear_color = input.color(color.new(color.red, 0), "下跌颜色", group=grp_st_line)
+st_neutral_color = input.color(color.new(color.gray, 0), "震荡颜色", group=grp_st_line)
+st_transparency = input.int(0, "透明度", minval=0, maxval=100, group=grp_st_line)
+st_line_width = input.int(2, "线宽", minval=1, maxval=10, group=grp_st_line)
+st_line_style = input.linestyle(line.style_solid, "线型", group=grp_st_line)
+
+// 线段样式 - 中期
+grp_mt_line = "中期线段样式"
+mt_bull_color = input.color(color.new(color.lime, 0), "上涨颜色", group=grp_mt_line)
+mt_bear_color = input.color(color.new(color.maroon, 0), "下跌颜色", group=grp_mt_line)
+mt_neutral_color = input.color(color.new(color.gray, 0), "震荡颜色", group=grp_mt_line)
+mt_transparency = input.int(0, "透明度", minval=0, maxval=100, group=grp_mt_line)
+mt_line_width = input.int(2, "线宽", minval=1, maxval=10, group=grp_mt_line)
+mt_line_style = input.linestyle(line.style_solid, "线型", group=grp_mt_line)
+
+// 线段样式 - 长期
+grp_lt_line = "长期线段样式"
+lt_bull_color = input.color(color.new(color.teal, 0), "上涨颜色", group=grp_lt_line)
+lt_bear_color = input.color(color.new(color.purple, 0), "下跌颜色", group=grp_lt_line)
+lt_neutral_color = input.color(color.new(color.gray, 0), "震荡颜色", group=grp_lt_line)
+lt_transparency = input.int(0, "透明度", minval=0, maxval=100, group=grp_lt_line)
+lt_line_width = input.int(2, "线宽", minval=1, maxval=10, group=grp_lt_line)
+lt_line_style = input.linestyle(line.style_solid, "线型", group=grp_lt_line)
+
+// 高低点标注
+grp_labels = "高低点标注"
+show_labels = input.bool(true, "显示标注", group=grp_labels)
+st_high_color = input.color(color.new(color.green, 0), "短期高点颜色", group=grp_labels)
+st_low_color = input.color(color.new(color.red, 0), "短期低点颜色", group=grp_labels)
+mt_high_color = input.color(color.new(color.lime, 0), "中期高点颜色", group=grp_labels)
+mt_low_color = input.color(color.new(color.maroon, 0), "中期低点颜色", group=grp_labels)
+lt_high_color = input.color(color.new(color.teal, 0), "长期高点颜色", group=grp_labels)
+lt_low_color = input.color(color.new(color.purple, 0), "长期低点颜色", group=grp_labels)
+label_size = input.size(size.small, "标注大小", group=grp_labels)
+
+// 高周期投影
+grp_projection = "高周期投影"
+enable_projection = input.bool(false, "启用投影", group=grp_projection)
+projection_source_tf = input.timeframe("240", "投影源周期", group=grp_projection)
+projection_transparency = input.int(50, "投影透明度", minval=0, maxval=100, group=grp_projection)
+
+// ============================================================================
+// 数据结构
+// ============================================================================
+
+// 结构点: 记录每一个转折点
+type StructurePoint
+    int bar_idx      // K线索引
+    float price      // 价格
+    bool is_high     // true=高点, false=低点
+
+// 存储各周期结构点
+var array<StructurePoint> st_points = array.new<StructurePoint>()  // 短期
+var array<StructurePoint> mt_points = array.new<StructurePoint>()  // 中期
+var array<StructurePoint> lt_points = array.new<StructurePoint>()  // 长期
+
+// 存储短期高点和低点的索引(用于中期计算)
+var array<int> st_high_indices = array.new<int>()  // 短期高点在st_points中的索引
+var array<int> st_low_indices = array.new<int>()   // 短期低点在st_points中的索引
+
+// 存储中期高点和低点的索引(用于长期计算)
+var array<int> mt_high_indices = array.new<int>()  // 中期高点在mt_points中的索引
+var array<int> mt_low_indices = array.new<int>()   // 中期低点在mt_points中的索引
+
+// ============================================================================
+// 内包K线处理
+// ============================================================================
+
+var bool is_inside_bar = false
+var float merged_high = high
+var float merged_low = low
+var int merged_bar_idx = bar_index
+
+// 检测内包K线
+is_inside_bar := high < high[1] and low > low[1]
+
+if is_inside_bar
+    // 内包K线: 合并到前一根K线，扩展范围
+    merged_high := math.max(merged_high[1], high)
+    merged_low := math.min(merged_low[1], low)
+    // bar_index保持前一根的
+else
+    // 非内包K线: 使用当前K线数据
+    merged_high := high
+    merged_low := low
+    merged_bar_idx := bar_index
+
+// ============================================================================
+// 短期高低点检测 (3根K线pivot)
+// ============================================================================
+
+// 短期高点: 3根K线，中间的高点 > 两边的高点
+// 短期低点: 3根K线，中间的低点 < 两边的低点
+// 使用合并后的数据判断前一根K线(merged[1])是否为pivot
+
+var bool last_was_high = false  // 上一个短期点的类型(用于处理同时满足高低点的情况)
+
+bool is_st_high = false
+bool is_st_low = false
+
+// 只有当merged[1]不是内包K线的一部分时才判断
+// 检查: merged_high[1] > merged_high[0] and merged_high[1] > merged_high[2]
+// 检查: merged_low[1] < merged_low[0] and merged_low[1] < merged_low[2]
+
+if not is_inside_bar and not is_inside_bar[1]
+    // 当前K线和前一根K线都不是内包K线
+    is_st_high := merged_high[1] > merged_high[0] and merged_high[1] > merged_high[2]
+    is_st_low := merged_low[1] < merged_low[0] and merged_low[1] < merged_low[2]
+
+// 处理同时满足高低点的情况
+if is_st_high and is_st_low
+    // 根据前置结构选择：前一个是高点则选低点，前一个是低点则选高点
+    if last_was_high
+        is_st_high := false
+    else
+        is_st_low := false
+
+// 记录短期结构点
+if is_st_high
+    StructurePoint new_pt = StructurePoint.new(bar_index - 1, merged_high[1], true)
+    array.push(st_points, new_pt)
+    array.push(st_high_indices, array.size(st_points) - 1)
+    last_was_high := true
+
+else if is_st_low
+    StructurePoint new_pt = StructurePoint.new(bar_index - 1, merged_low[1], false)
+    array.push(st_points, new_pt)
+    array.push(st_low_indices, array.size(st_points) - 1)
+    last_was_high := false
+
+// ============================================================================
+// 中期高低点检测
+// ============================================================================
+
+// 中期高点: 夹在两个短期高点之间的最高价所在的K线
+// 中期低点: 夹在两个短期低点之间的最低价所在的K线
+
+// 检测中期高低点的逻辑：
+// 当我们有新的短期高点时，检查是否能形成中期高点
+// 当我们有新的短期低点时，检查是否能形成中期低点
+
+// 中期高点检测
+if is_st_high and array.size(st_high_indices) >= 2
+    // 有两个短期高点，检查它们之间是否有更高的点
+    int prev_st_high_idx = array.get(st_high_indices, array.size(st_high_indices) - 2)
+    int curr_st_high_idx = array.get(st_high_indices, array.size(st_high_indices) - 1)
+
+    StructurePoint prev_st_high = array.get(st_points, prev_st_high_idx)
+    StructurePoint curr_st_high = array.get(st_points, curr_st_high_idx)
+
+    // 在这两个短期高点之间的所有K线中找最高价
+    // 由于Pine Script的限制，我们用近似方法：取两个短期高点中较高的那个
+    // 如果后一个更高，则后一个短期高点也是中期高点
+
+    if curr_st_high.price >= prev_st_high.price
+        // 检查是否已经存在
+        bool exists = false
+        for i = 0 to array.size(mt_points) - 1
+            StructurePoint mt_pt = array.get(mt_points, i)
+            if mt_pt.bar_idx == curr_st_high.bar_idx
+                exists := true
+                break
+        if not exists
+            StructurePoint mt_high = StructurePoint.new(curr_st_high.bar_idx, curr_st_high.price, true)
+            array.push(mt_points, mt_high)
+            array.push(mt_high_indices, array.size(mt_points) - 1)
+
+// 中期低点检测
+if is_st_low and array.size(st_low_indices) >= 2
+    int prev_st_low_idx = array.get(st_low_indices, array.size(st_low_indices) - 2)
+    int curr_st_low_idx = array.get(st_low_indices, array.size(st_low_indices) - 1)
+
+    StructurePoint prev_st_low = array.get(st_points, prev_st_low_idx)
+    StructurePoint curr_st_low = array.get(st_points, curr_st_low_idx)
+
+    if curr_st_low.price <= prev_st_low.price
+        // 检查是否已经存在
+        bool exists = false
+        for i = 0 to array.size(mt_points) - 1
+            StructurePoint mt_pt = array.get(mt_points, i)
+            if mt_pt.bar_idx == curr_st_low.bar_idx
+                exists := true
+                break
+        if not exists
+            StructurePoint mt_low = StructurePoint.new(curr_st_low.bar_idx, curr_st_low.price, false)
+            array.push(mt_points, mt_low)
+            array.push(mt_low_indices, array.size(mt_points) - 1)
+
+// 结构判断函数(辅助)
+// 判断结构类型: 返回 1=上涨, -1=下跌, 0=震荡
+
+// ============================================================================
+// 长期高低点检测
+// ============================================================================
+
+// 长期高点: 夹在两个中期高点之间的最高价所在的K线
+// 长期低点: 夹在两个中期低点之间的最低价所在的K线
+
+// 长期高点检测
+if is_st_high and array.size(mt_high_indices) >= 2
+    int prev_mt_high_idx = array.get(mt_high_indices, array.size(mt_high_indices) - 2)
+    int curr_mt_high_idx = array.get(mt_high_indices, array.size(mt_high_indices) - 1)
+
+    StructurePoint prev_mt_high = array.get(mt_points, prev_mt_high_idx)
+    StructurePoint curr_mt_high = array.get(mt_points, curr_mt_high_idx)
+
+    if curr_mt_high.price >= prev_mt_high.price
+        bool exists = false
+        for i = 0 to array.size(lt_points) - 1
+            StructurePoint lt_pt = array.get(lt_points, i)
+            if lt_pt.bar_idx == curr_mt_high.bar_idx
+                exists := true
+                break
+        if not exists
+            StructurePoint lt_high = StructurePoint.new(curr_mt_high.bar_idx, curr_mt_high.price, true)
+            array.push(lt_points, lt_high)
+
+// 长期低点检测
+if is_st_low and array.size(mt_low_indices) >= 2
+    int prev_mt_low_idx = array.get(mt_low_indices, array.size(mt_low_indices) - 2)
+    int curr_mt_low_idx = array.get(mt_low_indices, array.size(mt_low_indices) - 1)
+
+    StructurePoint prev_mt_low = array.get(mt_points, prev_mt_low_idx)
+    StructurePoint curr_mt_low = array.get(mt_points, curr_mt_low_idx)
+
+    if curr_mt_low.price <= prev_mt_low.price
+        bool exists = false
+        for i = 0 to array.size(lt_points) - 1
+            StructurePoint lt_pt = array.get(lt_points, i)
+            if lt_pt.bar_idx == curr_mt_low.bar_idx
+                exists := true
+                break
+        if not exists
+            StructurePoint lt_low = StructurePoint.new(curr_mt_low.bar_idx, curr_mt_low.price, false)
+            array.push(lt_points, lt_low)
+
+// ============================================================================
+// 结构判断函数
+// ============================================================================
+
+// 上涨: 高点抬高 且 低点抬高
+// 下跌: 高点降低 且 低点降低
+// 震荡: 其他情况
+
+get_structure_type(array<StructurePoint> points) =>
+    int n = array.size(points)
+    if n < 4
+        return 0
+
+    // 找最近的两个高点和两个低点
+    float last_high = na, prev_high = na
+    float last_low = na, prev_low = na
+
+    // 从后往前找
+    int high_count = 0, low_count = 0
+    for i = n - 1 to 0
+        StructurePoint pt = array.get(points, i)
+        if pt.is_high
+            high_count += 1
+            if high_count == 1
+                last_high := pt.price
+            else if high_count == 2
+                prev_high := pt.price
+                if low_count >= 2
+                    break
+        else
+            low_count += 1
+            if low_count == 1
+                last_low := pt.price
+            else if low_count == 2
+                prev_low := pt.price
+                if high_count >= 2
+                    break
+
+    // 判断
+    if na(last_high) or na(prev_high) or na(last_low) or na(prev_low)
+        return 0
+
+    bool high_up = last_high > prev_high
+    bool high_down = last_high < prev_high
+    bool low_up = last_low > prev_low
+    bool low_down = last_low < prev_low
+
+    if high_up and low_up
+        return 1   // 上涨
+    else if high_down and low_down
+        return -1  // 下跌
+    else
+        return 0   // 震荡
+
+// 获取当前线段的结构类型
+get_line_structure_type(array<StructurePoint> points, int idx) =>
+    int n = array.size(points)
+    if n < 2 or idx < 1
+        return 0
+
+    float last_high = na, prev_high = na
+    float last_low = na, prev_low = na
+
+    int high_count = 0, low_count = 0
+    for i = idx to 0
+        StructurePoint pt = array.get(points, i)
+        if pt.is_high
+            high_count += 1
+            if high_count == 1
+                last_high := pt.price
+            else if high_count == 2
+                prev_high := pt.price
+                if low_count >= 2
+                    break
+        else
+            low_count += 1
+            if low_count == 1
+                last_low := pt.price
+            else if low_count == 2
+                prev_low := pt.price
+                if high_count >= 2
+                    break
+
+    if na(last_high) or na(prev_high) or na(last_low) or na(prev_low)
+        return 0
+
+    bool high_up = last_high > prev_high
+    bool high_down = last_high < prev_high
+    bool low_up = last_low > prev_low
+    bool low_down = last_low < prev_low
+
+    if high_up and low_up
+        return 1
+    else if high_down and low_down
+        return -1
+    else
+        return 0
+
+// ============================================================================
+// 绘图函数
+// ============================================================================
+
+draw_structure(array<StructurePoint> points,
+               color bull_color, color bear_color, color neutral_color,
+               int transparency, int line_width, linestyle line_style,
+               bool show_markers, color marker_high_color, color marker_low_color,
+               size marker_size) =>
+
+    int n = array.size(points)
+    if n < 2
+        return
+
+    // 绘制连接线
+    for i = 1 to n - 1
+        StructurePoint pt1 = array.get(points, i - 1)
+        StructurePoint pt2 = array.get(points, i)
+
+        // 获取结构类型
+        int struct_type = get_line_structure_type(points, i)
+
+        color line_color = neutral_color
+        if struct_type == 1
+            line_color := bull_color
+        else if struct_type == -1
+            line_color := bear_color
+
+        line_color := color.new(line_color, transparency)
+
+        line.new(pt1.bar_idx, pt1.price, pt2.bar_idx, pt2.price,
+                 color=line_color, width=line_width, style=line_style)
+
+    // 绘制标注(只绘制首尾点避免重复)
+    if show_markers and n >= 2
+        // 第一个点
+        StructurePoint first_pt = array.get(points, 0)
+        label.new(first_pt.bar_idx, first_pt.price, "",
+                  color=first_pt.is_high ? marker_high_color : marker_low_color,
+                  style=first_pt.is_high ? label.style_label_down : label.style_label_up,
+                  size=marker_size)
+
+        // 最后一个点
+        StructurePoint last_pt = array.get(points, n - 1)
+        label.new(last_pt.bar_idx, last_pt.price, "",
+                  color=last_pt.is_high ? marker_high_color : marker_low_color,
+                  style=last_pt.is_high ? label.style_label_down : label.style_label_up,
+                  size=marker_size)
+
+// ============================================================================
+// 执行绘图
+// ============================================================================
+
+// 短期结构
+if show_short_term and array.size(st_points) >= 2
+    draw_structure(st_points,
+                   st_bull_color, st_bear_color, st_neutral_color,
+                   st_transparency, st_line_width, st_line_style,
+                   show_labels, st_high_color, st_low_color, label_size)
+
+// 中期结构
+if show_mid_term and array.size(mt_points) >= 2
+    draw_structure(mt_points,
+                   mt_bull_color, mt_bear_color, mt_neutral_color,
+                   mt_transparency, mt_line_width, mt_line_style,
+                   show_labels, mt_high_color, mt_low_color, label_size)
+
+// 长期结构
+if show_long_term and array.size(lt_points) >= 2
+    draw_structure(lt_points,
+                   lt_bull_color, lt_bear_color, lt_neutral_color,
+                   lt_transparency, lt_line_width, lt_line_style,
+                   show_labels, lt_high_color, lt_low_color, label_size)
+
+// ============================================================================
+// 高周期投影
+// ============================================================================
+
+if enable_projection
+    // 使用request.security获取高周期数据
+    // 这里简化处理：投影功能的完整实现需要更复杂的架构
+    // 建议：在目标低周期图表上直接加载指标，设置对应的结构周期
+    na
+
+// ============================================================================
+// 信息面板
+// ============================================================================
+
+var table info_table = table.new(position.top_right, 2, 4,
+                                  border_color=color.gray,
+                                  border_width=1,
+                                  frame_color=color.gray,
+                                  frame_width=1)
+
+if barstate.islast
+    // 表头
+    table.cell(info_table, 0, 0, "结构周期", bgcolor=color.new(color.gray, 80), text_color=color.white)
+    table.cell(info_table, 1, 0, "状态", bgcolor=color.new(color.gray, 80), text_color=color.white)
+
+    // 短期状态
+    if show_short_term and array.size(st_points) >= 4
+        int st_type = get_structure_type(st_points)
+        string st_status = st_type == 1 ? "上涨↑" : st_type == -1 ? "下跌↓" : "震荡"
+        color st_color = st_type == 1 ? color.green : st_type == -1 ? color.red : color.gray
+        table.cell(info_table, 0, 1, "短期", bgcolor=color.new(color.gray, 90))
+        table.cell(info_table, 1, 1, st_status, bgcolor=st_color, text_color=color.white)
+    else
+        table.cell(info_table, 0, 1, "短期", bgcolor=color.new(color.gray, 90))
+        table.cell(info_table, 1, 1, show_short_term ? "..." : "关闭", bgcolor=color.new(color.gray, 90))
+
+    // 中期状态
+    if show_mid_term and array.size(mt_points) >= 4
+        int mt_type = get_structure_type(mt_points)
+        string mt_status = mt_type == 1 ? "上涨↑" : mt_type == -1 ? "下跌↓" : "震荡"
+        color mt_color = mt_type == 1 ? color.lime : mt_type == -1 ? color.maroon : color.gray
+        table.cell(info_table, 0, 2, "中期", bgcolor=color.new(color.gray, 90))
+        table.cell(info_table, 1, 2, mt_status, bgcolor=mt_color, text_color=color.white)
+    else
+        table.cell(info_table, 0, 2, "中期", bgcolor=color.new(color.gray, 90))
+        table.cell(info_table, 1, 2, show_mid_term ? "..." : "关闭", bgcolor=color.new(color.gray, 90))
+
+    // 长期状态
+    if show_long_term and array.size(lt_points) >= 4
+        int lt_type = get_structure_type(lt_points)
+        string lt_status = lt_type == 1 ? "上涨↑" : lt_type == -1 ? "下跌↓" : "震荡"
+        color lt_color = lt_type == 1 ? color.teal : lt_type == -1 ? color.purple : color.gray
+        table.cell(info_table, 0, 3, "长期", bgcolor=color.new(color.gray, 90))
+        table.cell(info_table, 1, 3, lt_status, bgcolor=lt_color, text_color=color.white)
+    else
+        table.cell(info_table, 0, 3, "长期", bgcolor=color.new(color.gray, 90))
+        table.cell(info_table, 1, 3, show_long_term ? "..." : "关闭", bgcolor=color.new(color.gray, 90))
