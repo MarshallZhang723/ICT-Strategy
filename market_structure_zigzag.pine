@@ -83,32 +83,16 @@ if is_high and is_low
     else
         is_low := false
 
-// 记录结构点 - 核心逻辑：高点低点必须交替，且只保留更极端的点
+// 记录结构点
 
 if is_high
     StructurePoint new_pt = StructurePoint.new(bar_index - 1, merged_high[1], high[1], low[1], true)
-
-    if last_was_high and array.size(points) > 0
-        // 连续高点：只有新的更高时才替换
-        StructurePoint old_pt = array.get(points, array.size(points) - 1)
-        if new_pt.price > old_pt.price
-            array.set(points, array.size(points) - 1, new_pt)
-    else
-        // 正常情况：添加新高点
-        array.push(points, new_pt)
+    array.push(points, new_pt)
     last_was_high := true
 
 else if is_low
     StructurePoint new_pt = StructurePoint.new(bar_index - 1, merged_low[1], high[1], low[1], false)
-
-    if not last_was_high and array.size(points) > 0
-        // 连续低点：只有新的更低时才替换
-        StructurePoint old_pt = array.get(points, array.size(points) - 1)
-        if new_pt.price < old_pt.price
-            array.set(points, array.size(points) - 1, new_pt)
-    else
-        // 正常情况：添加新低点
-        array.push(points, new_pt)
+    array.push(points, new_pt)
     last_was_high := false
 
 // ============================================================================
