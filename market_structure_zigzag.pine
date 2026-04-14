@@ -268,8 +268,10 @@ get_structure_type(array<StructurePoint> points) =>
 
     if n >= 4
         // 找最近的两个高点和两个低点
-        float last_high = na, prev_high = na
-        float last_low = na, prev_low = na
+        float last_high = na
+        float prev_high = na
+        float last_low = na
+        float prev_low = na
 
         // 从后往前找
         int high_count = 0, low_count = 0
@@ -312,8 +314,10 @@ get_line_structure_type(array<StructurePoint> points, int idx) =>
     int result = 0
 
     if n >= 2 and idx >= 1
-        float last_high = na, prev_high = na
-        float last_low = na, prev_low = na
+        float last_high = na
+        float prev_high = na
+        float last_low = na
+        float prev_low = na
 
         int high_count = 0, low_count = 0
         for i = idx to 0
@@ -354,7 +358,7 @@ get_line_structure_type(array<StructurePoint> points, int idx) =>
 
 draw_structure(array<StructurePoint> points,
                color bull_color, color bear_color, color neutral_color,
-               int transparency, int line_width, linestyle line_style,
+               int transparency, int line_width, int line_style,
                bool show_markers, color marker_high_color, color marker_low_color,
                size marker_size) =>
 
