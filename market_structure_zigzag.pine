@@ -71,6 +71,9 @@ if is_high
         if high[1] > old_pt.price
             StructurePoint new_pt = StructurePoint.new(bar_index - 1, high[1], true)
             array.set(st_points, array.size(st_points) - 1, new_pt)
+            // 更新 st_high_indices 中对应的索引（最后一个元素）
+            if array.size(st_high_indices) > 0
+                array.set(st_high_indices, array.size(st_high_indices) - 1, array.size(st_points) - 1)
 
 else if is_low
     if array.size(st_points) == 0 or last_was_high
@@ -85,6 +88,9 @@ else if is_low
         if low[1] < old_pt.price
             StructurePoint new_pt = StructurePoint.new(bar_index - 1, low[1], false)
             array.set(st_points, array.size(st_points) - 1, new_pt)
+            // 更新 st_low_indices 中对应的索引（最后一个元素）
+            if array.size(st_low_indices) > 0
+                array.set(st_low_indices, array.size(st_low_indices) - 1, array.size(st_points) - 1)
 
 // ============================================================================
 // 中期高低点检测
@@ -155,6 +161,7 @@ if barstate.islast
     // 绘制短期结构
     if show_st and array.size(st_points) >= 2
         int n = array.size(st_points)
+        int max_hist_offset = 900  // Pine Script 历史缓冲区限制
         int max_lines = 200
         int start_idx = math.max(1, n - max_lines)
 
@@ -164,9 +171,11 @@ if barstate.islast
             StructurePoint pt1 = array.get(st_points, i - 1)
             StructurePoint pt2 = array.get(st_points, i)
 
-            line ln = line.new(pt1.bar_idx, pt1.price, pt2.bar_idx, pt2.price,
-                     color=draw_color, width=st_width)
-            array.push(drawn_lines, ln)
+            // 检查两点都在历史缓冲区内
+            if bar_index - pt1.bar_idx < max_hist_offset and bar_index - pt2.bar_idx < max_hist_offset
+                line ln = line.new(pt1.bar_idx, pt1.price, pt2.bar_idx, pt2.price,
+                         color=draw_color, width=st_width)
+                array.push(drawn_lines, ln)
 
     // 绘制中期结构
     if show_mt and array.size(mt_points) >= 2
@@ -180,9 +189,15 @@ if barstate.islast
                     array.set(mt_points, i, ptj)
                     array.set(mt_points, j, pti)
 
-        // 限制绘制数量
-        int max_mt_lines = 100
-        int mt_start = math.max(1, mt_n - max_mt_lines)
+        // 限制绘制数量，并确保在历史缓冲区内
+        int max_hist_offset = 900  // Pine Script 历史缓冲区限制
+        int mt_start = 1
+        // 找到第一个在缓冲区内的点
+        for i = 1 to mt_n - 1
+            StructurePoint pt = array.get(mt_points, i)
+            if bar_index - pt.bar_idx < max_hist_offset
+                mt_start := i
+                break
 
         color draw_color = color.new(mt_color, mt_transparency)
 
@@ -190,6 +205,8 @@ if barstate.islast
             StructurePoint pt1 = array.get(mt_points, i - 1)
             StructurePoint pt2 = array.get(mt_points, i)
 
-            line ln = line.new(pt1.bar_idx, pt1.price, pt2.bar_idx, pt2.price,
-                     color=draw_color, width=mt_width)
-            array.push(drawn_lines, ln)
+            // 再次检查两点都在缓冲区内
+            if bar_index - pt1.bar_idx < max_hist_offset and bar_index - pt2.bar_idx < max_hist_offset
+                line ln = line.new(pt1.bar_idx, pt1.price, pt2.bar_idx, pt2.price,
+                         color=draw_color, width=mt_width)
+                array.push(drawn_lines, ln)
