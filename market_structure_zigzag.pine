@@ -8,15 +8,14 @@ indicator("Market Structure Zigzag", overlay=true, max_lines_count=500)
 grp_st = "短期结构"
 show_st = input.bool(true, "显示短期结构", group=grp_st)
 st_color = input.color(color.new(color.green, 0), "短期颜色", group=grp_st)
-st_transparency = input.int(0, "短期透明度", minval=0, maxval=100, group=grp_st)
 st_width = input.int(2, "短期线宽", minval=1, maxval=10, group=grp_st)
+st_style = input.string("实线", "短期线型", options=["实线", "虚线", "点线"], group=grp_st)
 
 grp_mt = "中期结构"
 show_mt = input.bool(true, "显示中期结构", group=grp_mt)
 mt_color = input.color(color.new(color.blue, 0), "中期颜色", group=grp_mt)
-mt_transparency = input.int(0, "中期透明度", minval=0, maxval=100, group=grp_mt)
 mt_width = input.int(2, "中期线宽", minval=1, maxval=10, group=grp_mt)
-max_mt_lines = 200
+mt_style = input.string("实线", "中期线型", options=["实线", "虚线", "点线"], group=grp_mt)
 
 // ============================================================================
 // 数据结构
@@ -194,14 +193,16 @@ if barstate.islast
             line.delete(array.get(drawn_lines, i))
         array.clear(drawn_lines)
 
+    // 线型转换
+    line.style st_line_style = st_style == "虚线" ? line.style_dashed : st_style == "点线" ? line.style_dotted : line.style_solid
+    line.style mt_line_style = mt_style == "虚线" ? line.style_dashed : mt_style == "点线" ? line.style_dotted : line.style_solid
+
     // 绘制短期结构
     if show_st and array.size(st_points) >= 2
         int n = array.size(st_points)
         int max_hist_offset = 900  // Pine Script 历史缓冲区限制
         int max_lines = 200
         int start_idx = math.max(1, n - max_lines)
-
-        color draw_color = color.new(st_color, st_transparency)
 
         for i = start_idx to n - 1
             StructurePoint pt1 = array.get(st_points, i - 1)
@@ -210,7 +211,7 @@ if barstate.islast
             // 检查两点都在历史缓冲区内
             if bar_index - pt1.bar_idx < max_hist_offset and bar_index - pt2.bar_idx < max_hist_offset
                 line ln = line.new(pt1.bar_idx, pt1.price, pt2.bar_idx, pt2.price,
-                         color=draw_color, width=st_width)
+                         color=st_color, width=st_width, style=st_line_style)
                 array.push(drawn_lines, ln)
 
     // 绘制中期结构
@@ -235,8 +236,6 @@ if barstate.islast
                 mt_start := i
                 break
 
-        color draw_color = color.new(mt_color, mt_transparency)
-
         for i = mt_start to mt_n - 1
             StructurePoint pt1 = array.get(mt_points, i - 1)
             StructurePoint pt2 = array.get(mt_points, i)
@@ -244,5 +243,5 @@ if barstate.islast
             // 再次检查两点都在缓冲区内
             if bar_index - pt1.bar_idx < max_hist_offset and bar_index - pt2.bar_idx < max_hist_offset
                 line ln = line.new(pt1.bar_idx, pt1.price, pt2.bar_idx, pt2.price,
-                         color=draw_color, width=mt_width)
+                         color=mt_color, width=mt_width, style=mt_line_style)
                 array.push(drawn_lines, ln)
