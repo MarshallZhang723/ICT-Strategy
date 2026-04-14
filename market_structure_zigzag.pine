@@ -42,16 +42,20 @@ if is_high and is_low
     else
         is_low := false
 
-// 记录结构点
+// 记录结构点 - 高点只能连低点，低点只能连高点
 if is_high
-    StructurePoint new_pt = StructurePoint.new(bar_index - 1, high[1], true)
-    array.push(points, new_pt)
-    last_was_high := true
+    // 第一个点或上一个点是低点时才能添加高点
+    if array.size(points) == 0 or not last_was_high
+        StructurePoint new_pt = StructurePoint.new(bar_index - 1, high[1], true)
+        array.push(points, new_pt)
+        last_was_high := true
 
 else if is_low
-    StructurePoint new_pt = StructurePoint.new(bar_index - 1, low[1], false)
-    array.push(points, new_pt)
-    last_was_high := false
+    // 第一个点或上一个点是高点时才能添加低点
+    if array.size(points) == 0 or last_was_high
+        StructurePoint new_pt = StructurePoint.new(bar_index - 1, low[1], false)
+        array.push(points, new_pt)
+        last_was_high := false
 
 // ============================================================================
 // 结构判断函数
