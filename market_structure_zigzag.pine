@@ -93,6 +93,8 @@ else if is_low
 // 中期高点：左边有更低的短期高点，右边也有更低的短期高点
 // 中期低点：左边有更高的短期低点，右边也有更高的短期低点
 
+var bool mt_last_was_high = false
+
 // 检测中期高点
 if array.size(st_high_indices) >= 3
     // 检查倒数第二个短期高点是否为中期高点
@@ -114,8 +116,18 @@ if array.size(st_high_indices) >= 3
                 if mt_pt.bar_idx == mid_pt.bar_idx and mt_pt.is_high
                     exists := true
                     break
+
         if not exists
-            array.push(mt_points, mid_pt)
+            // 与短期结构相同的逻辑：高低交替，连续同类型保留极值
+            if array.size(mt_points) == 0 or not mt_last_was_high
+                // 第一个点或上一个点是低点 → 添加高点
+                array.push(mt_points, mid_pt)
+                mt_last_was_high := true
+            else
+                // 连续高点 → 比较并保留更高的
+                StructurePoint old_pt = array.get(mt_points, array.size(mt_points) - 1)
+                if mid_pt.price > old_pt.price
+                    array.set(mt_points, array.size(mt_points) - 1, mid_pt)
 
 // 检测中期低点
 if array.size(st_low_indices) >= 3
@@ -136,8 +148,18 @@ if array.size(st_low_indices) >= 3
                 if mt_pt.bar_idx == mid_pt.bar_idx and not mt_pt.is_high
                     exists := true
                     break
+
         if not exists
-            array.push(mt_points, mid_pt)
+            // 与短期结构相同的逻辑：高低交替，连续同类型保留极值
+            if array.size(mt_points) == 0 or mt_last_was_high
+                // 第一个点或上一个点是高点 → 添加低点
+                array.push(mt_points, mid_pt)
+                mt_last_was_high := false
+            else
+                // 连续低点 → 比较并保留更低的
+                StructurePoint old_pt = array.get(mt_points, array.size(mt_points) - 1)
+                if mid_pt.price < old_pt.price
+                    array.set(mt_points, array.size(mt_points) - 1, mid_pt)
 
 // ============================================================================
 // 绘图
