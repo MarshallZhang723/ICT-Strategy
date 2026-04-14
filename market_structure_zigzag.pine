@@ -164,30 +164,41 @@ if is_mt_high and is_mt_low
     else
         is_mt_low := false  // 上一个是低点 → 保留高点
 
-// 记录中期结构点 - 与短期结构相同的逻辑
-// 高点只能连低点，低点只能连高点
-// 连续高点：保留最高的；连续低点：保留最低的
+// 记录中期结构点
+// 必须同时满足两个条件：
+// 1. 类型交替（高点连低点，低点连高点）
+// 2. 时间顺序（新点的 bar_idx 必须在上一个点之后）
 if is_mt_high
-    if array.size(mt_points) == 0 or not mt_last_was_high
-        // 第一个点或上一个点是低点 → 添加高点
+    if array.size(mt_points) == 0
+        // 第一个点 → 添加
         array.push(mt_points, mt_high_pt)
         mt_last_was_high := true
     else
-        // 连续高点 → 比较并保留更高的
-        StructurePoint old_pt = array.get(mt_points, array.size(mt_points) - 1)
-        if mt_high_pt.price > old_pt.price
-            array.set(mt_points, array.size(mt_points) - 1, mt_high_pt)
+        StructurePoint last_pt = array.get(mt_points, array.size(mt_points) - 1)
+        if not mt_last_was_high and mt_high_pt.bar_idx > last_pt.bar_idx
+            // 上一个是低点，且新点时间更晚 → 添加高点
+            array.push(mt_points, mt_high_pt)
+            mt_last_was_high := true
+        else if mt_last_was_high and mt_high_pt.bar_idx > last_pt.bar_idx
+            // 连续高点 → 比较并保留更高的
+            if mt_high_pt.price > last_pt.price
+                array.set(mt_points, array.size(mt_points) - 1, mt_high_pt)
 
 else if is_mt_low
-    if array.size(mt_points) == 0 or mt_last_was_high
-        // 第一个点或上一个点是高点 → 添加低点
+    if array.size(mt_points) == 0
+        // 第一个点 → 添加
         array.push(mt_points, mt_low_pt)
         mt_last_was_high := false
     else
-        // 连续低点 → 比较并保留更低的
-        StructurePoint old_pt = array.get(mt_points, array.size(mt_points) - 1)
-        if mt_low_pt.price < old_pt.price
-            array.set(mt_points, array.size(mt_points) - 1, mt_low_pt)
+        StructurePoint last_pt = array.get(mt_points, array.size(mt_points) - 1)
+        if mt_last_was_high and mt_low_pt.bar_idx > last_pt.bar_idx
+            // 上一个是高点，且新点时间更晚 → 添加低点
+            array.push(mt_points, mt_low_pt)
+            mt_last_was_high := false
+        else if not mt_last_was_high and mt_low_pt.bar_idx > last_pt.bar_idx
+            // 连续低点 → 比较并保留更低的
+            if mt_low_pt.price < last_pt.price
+                array.set(mt_points, array.size(mt_points) - 1, mt_low_pt)
 
 // ============================================================================
 // 绘图
