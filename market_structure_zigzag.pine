@@ -265,12 +265,13 @@ if barstate.islast
                     array.push(drawn_lines, day_ln)
 
                 // 添加星期标签（在两个分割线之间的中间位置）
+                // 使用 yloc.bottom 将标签固定在图表底部同一高度
                 if show_day_labels and not na(prev_sep)
                     int mid_bar = math.round((prev_sep + sep_bar) / 2)
-                    label day_lbl = label.new(mid_bar, low,
+                    label day_lbl = label.new(mid_bar, na,
                              text = sep_day_name,
                              xloc = xloc.bar_index,
-                             yloc = yloc.belowbar,
+                             yloc = yloc.bottom,
                              color = color.new(color.gray, 100),
                              style = label.style_label_up,
                              textcolor = day_label_color,
@@ -289,10 +290,10 @@ if barstate.islast
                                       dayofweek(ny_time) == dayofweek.thursday ? "Thu" :
                                       dayofweek(ny_time) == dayofweek.friday ? "Fri" :
                                       dayofweek(ny_time) == dayofweek.saturday ? "Sat" : "Sun"
-            label day_lbl = label.new(mid_bar, low,
+            label day_lbl = label.new(mid_bar, na,
                      text = current_day_name,
                      xloc = xloc.bar_index,
-                     yloc = yloc.belowbar,
+                     yloc = yloc.bottom,
                      color = color.new(color.gray, 100),
                      style = label.style_label_up,
                      textcolor = day_label_color,
