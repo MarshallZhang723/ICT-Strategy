@@ -157,32 +157,12 @@ if array.size(st_low_indices) >= 3
             mt_low_pt := mid_pt
 
 // 处理同时满足中期高低点的情况
-// 当两个条件同时满足时，需要按顺序处理（先处理高点，再处理低点）
+// 与短期结构相同：只保留一个，确保高低交替
 if is_mt_high and is_mt_low
-    // 先处理高点
-    if array.size(mt_points) == 0 or not mt_last_was_high
-        // 第一个点或上一个点是低点 → 添加高点
-        array.push(mt_points, mt_high_pt)
-        mt_last_was_high := true
+    if mt_last_was_high
+        is_mt_high := false  // 上一个是高点 → 保留低点
     else
-        // 连续高点 → 比较并保留更高的
-        StructurePoint old_pt = array.get(mt_points, array.size(mt_points) - 1)
-        if mt_high_pt.price > old_pt.price
-            array.set(mt_points, array.size(mt_points) - 1, mt_high_pt)
-
-    // 然后处理低点
-    if array.size(mt_points) == 0 or mt_last_was_high
-        array.push(mt_points, mt_low_pt)
-        mt_last_was_high := false
-    else
-        // 连续低点 → 比较并保留更低的
-        StructurePoint old_pt2 = array.get(mt_points, array.size(mt_points) - 1)
-        if mt_low_pt.price < old_pt2.price
-            array.set(mt_points, array.size(mt_points) - 1, mt_low_pt)
-
-    // 跳过后续的单独处理逻辑
-    is_mt_high := false
-    is_mt_low := false
+        is_mt_low := false  // 上一个是低点 → 保留高点
 
 // 记录中期结构点 - 与短期结构相同的逻辑
 // 高点只能连低点，低点只能连高点
