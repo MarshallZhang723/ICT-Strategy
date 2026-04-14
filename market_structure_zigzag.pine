@@ -1,107 +1,61 @@
 //@version=6
-indicator("Market Structure Zigzag", overlay=true, max_lines_count=500, max_labels_count=500)
+indicator("Market Structure Zigzag", overlay=true, max_lines_count=500)
 
 // ============================================================================
 // 输入设置
 // ============================================================================
 
-// 线段样式
 grp_line = "线段样式"
 bull_color = input.color(color.new(color.green, 0), "上涨颜色", group=grp_line)
 bear_color = input.color(color.new(color.red, 0), "下跌颜色", group=grp_line)
 neutral_color = input.color(color.new(color.gray, 0), "震荡颜色", group=grp_line)
 transparency = input.int(0, "透明度", minval=0, maxval=100, group=grp_line)
 line_width = input.int(2, "线宽", minval=1, maxval=10, group=grp_line)
-line_style_input = input.string("实线", "线型", options=["实线", "虚线", "点线"], group=grp_line)
-line_style = line_style_input == "实线" ? line.style_solid : line_style_input == "虚线" ? line.style_dashed : line.style_dotted
-
-// 高低点标注
-grp_labels = "高低点标注"
-show_labels = input.bool(true, "显示标注", group=grp_labels)
-high_color = input.color(color.new(color.green, 0), "高点颜色", group=grp_labels)
-low_color = input.color(color.new(color.red, 0), "低点颜色", group=grp_labels)
-label_size_input = input.string("small", "标注大小", options=["tiny", "small", "normal", "large", "huge"], group=grp_labels)
-label_size = label_size_input == "tiny" ? size.tiny : label_size_input == "small" ? size.small : label_size_input == "normal" ? size.normal : label_size_input == "large" ? size.large : size.huge
 
 // ============================================================================
 // 数据结构
 // ============================================================================
 
-// 结构点: 记录每一个转折点
 type StructurePoint
-    int bar_idx      // K线索引
-    float price      // 结构点价格
-    float bar_high   // K线高点
-    float bar_low    // K线低点
-    bool is_high     // true=高点, false=低点
+    int bar_idx
+    float price
+    bool is_high
 
-// 存储结构点
 var array<StructurePoint> points = array.new<StructurePoint>()
-
-// ============================================================================
-// 内包K线处理
-// ============================================================================
-
-var bool is_inside_bar = false
-var float merged_high = high
-var float merged_low = low
-
-// 检测内包K线
-is_inside_bar := high < high[1] and low > low[1]
-
-if is_inside_bar
-    // 内包K线: 合并到前一根K线，扩展范围
-    merged_high := math.max(merged_high[1], high)
-    merged_low := math.min(merged_low[1], low)
-else
-    // 非内包K线: 使用当前K线数据
-    merged_high := high
-    merged_low := low
 
 // ============================================================================
 // 短期高低点检测 (3根K线 pivot)
 // ============================================================================
 
-// 短期高点: 3根K线，中间的高点 > 两边的高点
-// 短期低点: 3根K线，中间的低点 < 两边的低点
-
-var bool last_was_high = false  // 上一个点的类型
+var bool last_was_high = false
 
 bool is_high = false
 bool is_low = false
 
-// 只有当前K线和前一根K线都不是内包K线时才判断
-if not is_inside_bar and not is_inside_bar[1]
-    is_high := merged_high[1] > merged_high[0] and merged_high[1] > merged_high[2]
-    is_low := merged_low[1] < merged_low[0] and merged_low[1] < merged_low[2]
+is_high := high[1] > high[0] and high[1] > high[2]
+is_low := low[1] < low[0] and low[1] < low[2]
 
 // 处理同时满足高低点的情况
 if is_high and is_low
-    // 根据前置结构选择：前一个是高点则选低点，前一个是低点则选高点
     if last_was_high
         is_high := false
     else
         is_low := false
 
 // 记录结构点
-
 if is_high
-    StructurePoint new_pt = StructurePoint.new(bar_index - 1, merged_high[1], high[1], low[1], true)
+    StructurePoint new_pt = StructurePoint.new(bar_index - 1, high[1], true)
     array.push(points, new_pt)
     last_was_high := true
 
 else if is_low
-    StructurePoint new_pt = StructurePoint.new(bar_index - 1, merged_low[1], high[1], low[1], false)
+    StructurePoint new_pt = StructurePoint.new(bar_index - 1, low[1], false)
     array.push(points, new_pt)
     last_was_high := false
 
 // ============================================================================
 // 结构判断函数
 // ============================================================================
-
-// 上涨: 高点抬高 且 低点抬高
-// 下跌: 高点降低 且 低点降低
-// 震荡: 其他情况
 
 get_structure_type(array<StructurePoint> pts) =>
     int n = array.size(pts)
@@ -198,22 +152,16 @@ get_line_structure_type(array<StructurePoint> pts, int idx) =>
 // ============================================================================
 
 var array<line> drawn_lines = array.new<line>()
-var array<label> drawn_labels = array.new<label>()
 
 if barstate.islast and array.size(points) >= 2
-    // 删除之前的所有线段和标签
+    // 删除旧线段
     if array.size(drawn_lines) > 0
         for i = 0 to array.size(drawn_lines) - 1
             line.delete(array.get(drawn_lines, i))
         array.clear(drawn_lines)
 
-    if array.size(drawn_labels) > 0
-        for i = 0 to array.size(drawn_labels) - 1
-            label.delete(array.get(drawn_labels, i))
-        array.clear(drawn_labels)
-
     int n = array.size(points)
-    int max_lines = 200  // 最大绘制线段数
+    int max_lines = 200
     int start_idx = math.max(1, n - max_lines)
 
     // 绘制连接线
@@ -232,24 +180,8 @@ if barstate.islast and array.size(points) >= 2
         line_color := color.new(line_color, transparency)
 
         line ln = line.new(pt1.bar_idx, pt1.price, pt2.bar_idx, pt2.price,
-                 color=line_color, width=line_width, style=line_style)
+                 color=line_color, width=line_width)
         array.push(drawn_lines, ln)
-
-    // 绘制标注
-    if show_labels
-        StructurePoint first_pt = array.get(points, start_idx - 1)
-        label lbl1 = label.new(first_pt.bar_idx, first_pt.price, "",
-                  color=first_pt.is_high ? high_color : low_color,
-                  style=first_pt.is_high ? label.style_label_down : label.style_label_up,
-                  size=label_size)
-        array.push(drawn_labels, lbl1)
-
-        StructurePoint last_pt = array.get(points, n - 1)
-        label lbl2 = label.new(last_pt.bar_idx, last_pt.price, "",
-                  color=last_pt.is_high ? high_color : low_color,
-                  style=last_pt.is_high ? label.style_label_down : label.style_label_up,
-                  size=label_size)
-        array.push(drawn_labels, lbl2)
 
 // ============================================================================
 // 信息面板
