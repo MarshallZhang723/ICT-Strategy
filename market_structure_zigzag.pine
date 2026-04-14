@@ -107,11 +107,12 @@ if array.size(st_high_indices) >= 3
     if mid_pt.price > left_pt.price and mid_pt.price > right_pt.price
         // 检查是否已存在
         bool exists = false
-        for i = 0 to array.size(mt_points) - 1
-            StructurePoint mt_pt = array.get(mt_points, i)
-            if mt_pt.bar_idx == mid_pt.bar_idx and mt_pt.is_high
-                exists := true
-                break
+        if array.size(mt_points) > 0
+            for i = 0 to array.size(mt_points) - 1
+                StructurePoint mt_pt = array.get(mt_points, i)
+                if mt_pt.bar_idx == mid_pt.bar_idx and mt_pt.is_high
+                    exists := true
+                    break
         if not exists
             array.push(mt_points, mid_pt)
 
@@ -128,11 +129,12 @@ if array.size(st_low_indices) >= 3
     // 中期低点：中间的比两边都低
     if mid_pt.price < left_pt.price and mid_pt.price < right_pt.price
         bool exists = false
-        for i = 0 to array.size(mt_points) - 1
-            StructurePoint mt_pt = array.get(mt_points, i)
-            if mt_pt.bar_idx == mid_pt.bar_idx and not mt_pt.is_high
-                exists := true
-                break
+        if array.size(mt_points) > 0
+            for i = 0 to array.size(mt_points) - 1
+                StructurePoint mt_pt = array.get(mt_points, i)
+                if mt_pt.bar_idx == mid_pt.bar_idx and not mt_pt.is_high
+                    exists := true
+                    break
         if not exists
             array.push(mt_points, mid_pt)
 
