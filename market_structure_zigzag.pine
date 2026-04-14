@@ -84,57 +84,32 @@ if is_high and is_low
         is_low := false
 
 // 记录结构点 - 核心逻辑：高点低点必须交替，且只保留更极端的点
-// 新增：只与同类型结构点比较是否被包含
 
 if is_high
     StructurePoint new_pt = StructurePoint.new(bar_index - 1, merged_high[1], high[1], low[1], true)
 
-    // 检查是否被上一个【同类型】结构点K线包含（只与高点比较）
-    bool is_contained = false
-    if array.size(points) > 0
-        for i = array.size(points) - 1 to 0
-            StructurePoint prev_pt = array.get(points, i)
-            if prev_pt.is_high  // 找到上一个高点
-                // 当前K线高点 <= 上一个高点K线高点 且 当前K线低点 >= 上一个高点K线低点
-                if new_pt.bar_high <= prev_pt.bar_high and new_pt.bar_low >= prev_pt.bar_low
-                    is_contained := true
-                break
-
-    if not is_contained
-        if last_was_high and array.size(points) > 0
-            // 连续高点：只有新的更高时才替换
-            StructurePoint old_pt = array.get(points, array.size(points) - 1)
-            if new_pt.price > old_pt.price
-                array.set(points, array.size(points) - 1, new_pt)
-        else
-            // 正常情况：添加新高点
-            array.push(points, new_pt)
-        last_was_high := true
+    if last_was_high and array.size(points) > 0
+        // 连续高点：只有新的更高时才替换
+        StructurePoint old_pt = array.get(points, array.size(points) - 1)
+        if new_pt.price > old_pt.price
+            array.set(points, array.size(points) - 1, new_pt)
+    else
+        // 正常情况：添加新高点
+        array.push(points, new_pt)
+    last_was_high := true
 
 else if is_low
     StructurePoint new_pt = StructurePoint.new(bar_index - 1, merged_low[1], high[1], low[1], false)
 
-    // 检查是否被上一个【同类型】结构点K线包含（只与低点比较）
-    bool is_contained = false
-    if array.size(points) > 0
-        for i = array.size(points) - 1 to 0
-            StructurePoint prev_pt = array.get(points, i)
-            if not prev_pt.is_high  // 找到上一个低点
-                // 当前K线高点 <= 上一个低点K线高点 且 当前K线低点 >= 上一个低点K线低点
-                if new_pt.bar_high <= prev_pt.bar_high and new_pt.bar_low >= prev_pt.bar_low
-                    is_contained := true
-                break
-
-    if not is_contained
-        if not last_was_high and array.size(points) > 0
-            // 连续低点：只有新的更低时才替换
-            StructurePoint old_pt = array.get(points, array.size(points) - 1)
-            if new_pt.price < old_pt.price
-                array.set(points, array.size(points) - 1, new_pt)
-        else
-            // 正常情况：添加新低点
-            array.push(points, new_pt)
-        last_was_high := false
+    if not last_was_high and array.size(points) > 0
+        // 连续低点：只有新的更低时才替换
+        StructurePoint old_pt = array.get(points, array.size(points) - 1)
+        if new_pt.price < old_pt.price
+            array.set(points, array.size(points) - 1, new_pt)
+    else
+        // 正常情况：添加新低点
+        array.push(points, new_pt)
+    last_was_high := false
 
 // ============================================================================
 // 结构判断函数
