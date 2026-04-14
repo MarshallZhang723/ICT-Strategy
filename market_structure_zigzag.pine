@@ -49,15 +49,10 @@ bool is_low = false
 is_high := high[1] > high[0] and high[1] > high[2]
 is_low := low[1] < low[0] and low[1] < low[2]
 
-// 处理同时满足高低点的情况
-if is_high and is_low
-    if last_was_high
-        is_high := false
-    else
-        is_low := false
-
 // 记录短期结构点 - 高点只能连低点，低点只能连高点
 // 连续高点：保留最高的；连续低点：保留最低的
+
+// 处理高点
 if is_high
     if array.size(st_points) == 0 or not last_was_high
         // 添加新高点
@@ -74,8 +69,11 @@ if is_high
             // 更新 st_high_indices 中对应的索引（最后一个元素）
             if array.size(st_high_indices) > 0
                 array.set(st_high_indices, array.size(st_high_indices) - 1, array.size(st_points) - 1)
+        // 如果新高点更低，不替换，但检查是否同时是低点
+        // 注意：这里不设置 is_high = false，而是让下面的低点逻辑处理
 
-else if is_low
+// 处理低点（独立于高点的判断，不再使用 else if）
+if is_low
     if array.size(st_points) == 0 or last_was_high
         // 添加新低点
         StructurePoint new_pt = StructurePoint.new(bar_index - 1, low[1], false)
