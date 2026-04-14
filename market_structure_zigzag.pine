@@ -194,8 +194,8 @@ if barstate.islast
         array.clear(drawn_lines)
 
     // 线型转换
-    line.style st_line_style = st_style == "虚线" ? line.style_dashed : st_style == "点线" ? line.style_dotted : line.style_solid
-    line.style mt_line_style = mt_style == "虚线" ? line.style_dashed : mt_style == "点线" ? line.style_dotted : line.style_solid
+    string st_line_style = st_style == "虚线" ? line.style_dashed : st_style == "点线" ? line.style_dotted : line.style_solid
+    string mt_line_style = mt_style == "虚线" ? line.style_dashed : mt_style == "点线" ? line.style_dotted : line.style_solid
 
     // 绘制短期结构
     if show_st and array.size(st_points) >= 2
