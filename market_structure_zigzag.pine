@@ -16,6 +16,7 @@ show_mt = input.bool(true, "显示中期结构", group=grp_mt)
 mt_color = input.color(color.new(color.blue, 0), "中期颜色", group=grp_mt)
 mt_transparency = input.int(0, "中期透明度", minval=0, maxval=100, group=grp_mt)
 mt_width = input.int(2, "中期线宽", minval=1, maxval=10, group=grp_mt)
+max_mt_lines = 200
 
 // ============================================================================
 // 数据结构
@@ -179,9 +180,13 @@ if barstate.islast
                     array.set(mt_points, i, ptj)
                     array.set(mt_points, j, pti)
 
+        // 限制绘制数量
+        int max_mt_lines = 100
+        int mt_start = math.max(1, mt_n - max_mt_lines)
+
         color draw_color = color.new(mt_color, mt_transparency)
 
-        for i = 1 to mt_n - 1
+        for i = mt_start to mt_n - 1
             StructurePoint pt1 = array.get(mt_points, i - 1)
             StructurePoint pt2 = array.get(mt_points, i)
 
