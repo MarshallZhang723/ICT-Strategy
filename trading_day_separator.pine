@@ -1,0 +1,124 @@
+//@version=6
+indicator("Trading Day Separator", overlay=true, max_lines_count=500)
+
+// ============================================================================
+// 输入设置
+// ============================================================================
+
+grp_day = "交易日分割"
+show_day_lines = input.bool(true, "显示交易日分割线", group=grp_day)
+day_line_color = input.color(color.new(color.gray, 50), "分割线颜色", group=grp_day)
+day_line_width = input.int(1, "分割线宽", minval=1, maxval=5, group=grp_day)
+day_line_style = input.string("虚线", "分割线型", options=["实线", "虚线", "点线"], group=grp_day)
+
+grp_label = "日期标签"
+show_day_labels = input.bool(true, "显示星期标签", group=grp_label)
+day_label_color = input.color(color.new(color.white, 0), "标签颜色", group=grp_label)
+
+// ============================================================================
+// 交易日分割线检测（基于纽约时间）
+// ============================================================================
+
+int ny_time = time(timeframe.period, "America/New_York")
+int ny_day = dayofweek(ny_time)
+int ny_day_prev = ny_day[1]
+bool is_new_ny_day = na(ny_day_prev) ? false : ny_day != ny_day_prev
+
+// 记录交易日分割点和对应的星期几
+var array<int> day_separators = array.new<int>()
+var array<string> day_names = array.new<string>()
+
+if is_new_ny_day
+    array.push(day_separators, bar_index)
+    string day_name = ny_day == dayofweek.monday ? "Mon" :
+                      ny_day == dayofweek.tuesday ? "Tue" :
+                      ny_day == dayofweek.wednesday ? "Wed" :
+                      ny_day == dayofweek.thursday ? "Thu" :
+                      ny_day == dayofweek.friday ? "Fri" :
+                      ny_day == dayofweek.saturday ? "Sat" : "Sun"
+    array.push(day_names, day_name)
+
+// ============================================================================
+// 绘图
+// ============================================================================
+
+var array<line> drawn_lines = array.new<line>()
+var array<label> day_labels = array.new<label>()
+
+if barstate.islast
+    // 删除旧线段和标签
+    if array.size(drawn_lines) > 0
+        for i = 0 to array.size(drawn_lines) - 1
+            line.delete(array.get(drawn_lines, i))
+        array.clear(drawn_lines)
+
+    if array.size(day_labels) > 0
+        for i = 0 to array.size(day_labels) - 1
+            label.delete(array.get(day_labels, i))
+        array.clear(day_labels)
+
+    // 线型转换
+    string day_line_style_str = day_line_style == "虚线" ? line.style_dashed : day_line_style == "点线" ? line.style_dotted : line.style_solid
+
+    int max_hist_offset = 900
+
+    // 绘制交易日分割线和星期标签
+    if array.size(day_separators) >= 1
+        int prev_sep = na
+        // 找到第一个在缓冲区内的分割线，作为标签的参考K线
+        int ref_bar = na
+        for i = 0 to array.size(day_separators) - 1
+            int sep_bar = array.get(day_separators, i)
+            if bar_index - sep_bar < max_hist_offset
+                ref_bar := sep_bar
+                break
+
+        for i = 0 to array.size(day_separators) - 1
+            int sep_bar = array.get(day_separators, i)
+            string sep_day_name = array.get(day_names, i)
+
+            // 只绘制在缓冲区内的分割线
+            if bar_index - sep_bar < max_hist_offset
+                // 画分割线
+                if show_day_lines
+                    line day_ln = line.new(sep_bar, high, sep_bar, low,
+                             xloc = xloc.bar_index, extend = extend.both,
+                             color = day_line_color, width = day_line_width, style = day_line_style_str)
+                    array.push(drawn_lines, day_ln)
+
+                // 添加星期标签（在两个分割线之间的中间位置）
+                // 所有标签都放在同一根参考K线上，保持高度一致
+                if show_day_labels and not na(prev_sep)
+                    int mid_bar = math.round((prev_sep + sep_bar) / 2)
+                    if not na(ref_bar) and bar_index - ref_bar >= 0
+                        label day_lbl = label.new(mid_bar, low[bar_index - ref_bar],
+                                 text = sep_day_name,
+                                 xloc = xloc.bar_index,
+                                 yloc = yloc.belowbar,
+                                 color = color.new(color.gray, 100),
+                                 style = label.style_label_up,
+                                 textcolor = day_label_color,
+                                 size = size.small)
+                        array.push(day_labels, day_lbl)
+
+            prev_sep := sep_bar
+
+        // 为最后一个交易日添加标签
+        if show_day_labels and not na(prev_sep) and bar_index - prev_sep < max_hist_offset
+            int mid_bar = math.round((prev_sep + bar_index) / 2)
+            string current_day_name = dayofweek(ny_time) == dayofweek.monday ? "Mon" :
+                                      dayofweek(ny_time) == dayofweek.tuesday ? "Tue" :
+                                      dayofweek(ny_time) == dayofweek.wednesday ? "Wed" :
+                                      dayofweek(ny_time) == dayofweek.thursday ? "Thu" :
+                                      dayofweek(ny_time) == dayofweek.friday ? "Fri" :
+                                      dayofweek(ny_time) == dayofweek.saturday ? "Sat" : "Sun"
+            if not na(ref_bar) and bar_index - ref_bar >= 0
+                label day_lbl = label.new(mid_bar, low[bar_index - ref_bar],
+                         text = current_day_name,
+                         xloc = xloc.bar_index,
+                         yloc = yloc.belowbar,
+                         color = color.new(color.gray, 100),
+                         style = label.style_label_up,
+                         textcolor = day_label_color,
+                         size = size.small)
+                array.push(day_labels, day_lbl)
