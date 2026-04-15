@@ -22,8 +22,8 @@ day_label_color = input.color(color.new(color.white, 0), "标签颜色", group=g
 int ny_time = time(timeframe.period, "America/New_York")
 int ny_hour = hour(ny_time)
 int ny_hour_prev = ny_hour[1]
-// 检测纽约时间跨越午夜（小时从高变低，如 23 -> 0 或 22 -> 1）
-bool is_new_ny_day = na(ny_hour_prev) ? false : ny_hour < ny_hour_prev
+// 检测纽约时间进入 0 点（小时变成 0 表示新的一天开始）
+bool is_new_ny_day = na(ny_hour_prev) ? false : ny_hour == 0 and ny_hour_prev != 0
 
 // 记录交易日分割点和对应的星期几
 var array<int> day_separators = array.new<int>()
