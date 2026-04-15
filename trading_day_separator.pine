@@ -1,23 +1,23 @@
 //@version=6
 indicator("Trading Day Separator", overlay=true, max_lines_count=500)
 
-// ============================================================================
+// ─────────────────────────────────────────────
 // 输入设置
-// ============================================================================
+// ─────────────────────────────────────────────
 
-grp_day = "交易日分割"
-show_day_lines = input.bool(true, "显示交易日分割线", group=grp_day)
-day_line_color = input.color(color.new(color.gray, 50), "分割线颜色", group=grp_day)
-day_line_width = input.int(1, "分割线宽", minval=1, maxval=5, group=grp_day)
-day_line_style = input.string("虚线", "分割线型", options=["实线", "虚线", "点线"], group=grp_day)
+string GDAY     = "══ 交易日分割线 ══"
+bool   showDay  = input.bool(true,     "显示交易日分割线", group = GDAY)
+color  colDay   = input.color(#546e7a, "分割线颜色",     group = GDAY)
+string dayStyle = input.string("虚线", "分割线样式",     options = ["实线", "虚线", "点线"], group = GDAY)
+int    dayWidth = input.int(1,         "分割线宽度",     minval = 1, maxval = 4, group = GDAY)
 
-grp_label = "日期标签"
-show_day_labels = input.bool(true, "显示星期标签", group=grp_label)
-day_label_color = input.color(color.new(color.white, 0), "标签颜色", group=grp_label)
+bool   showWkd  = input.bool(true,     "显示星期文字",   group = GDAY)
+color  colWkd   = input.color(#78909c, "星期文字颜色",   group = GDAY)
+string wkdSize  = input.string("small","星期文字大小",   options = ["tiny", "small", "normal", "large"], group = GDAY)
 
-// ============================================================================
+// ─────────────────────────────────────────────
 // 交易日分割线检测（基于纽约时间 0 点）
-// ============================================================================
+// ─────────────────────────────────────────────
 
 int ny_time = time(timeframe.period, "America/New_York")
 int ny_hour = hour(ny_time)
@@ -40,12 +40,17 @@ if is_new_ny_day
                       ny_day == dayofweek.saturday ? "Sat" : "Sun"
     array.push(day_names, day_name)
 
-// ============================================================================
+// ─────────────────────────────────────────────
 // 绘图
-// ============================================================================
+// ─────────────────────────────────────────────
 
 var array<line> drawn_lines = array.new<line>()
 var array<label> day_labels = array.new<label>()
+
+// 文字大小转换
+size wkdSizeVal = wkdSize == "tiny" ? size.tiny :
+                  wkdSize == "small" ? size.small :
+                  wkdSize == "normal" ? size.normal : size.large
 
 if barstate.islast
     // 删除旧线段和标签
@@ -60,7 +65,7 @@ if barstate.islast
         array.clear(day_labels)
 
     // 线型转换
-    string day_line_style_str = day_line_style == "虚线" ? line.style_dashed : day_line_style == "点线" ? line.style_dotted : line.style_solid
+    string dayStyleStr = dayStyle == "虚线" ? line.style_dashed : dayStyle == "点线" ? line.style_dotted : line.style_solid
 
     int max_hist_offset = 900
 
@@ -69,7 +74,6 @@ if barstate.islast
         int prev_sep = na
 
         // 使用最近 N 根 K 线的最低价作为标签 y 位置
-        // 这样标签更可能在可见范围内
         int lookback = math.min(500, bar_index)
         float fixed_y = ta.lowest(low, lookback)
 
@@ -80,25 +84,22 @@ if barstate.islast
             // 只绘制在缓冲区内的分割线
             if bar_index - sep_bar < max_hist_offset
                 // 画分割线
-                if show_day_lines
+                if showDay
                     line day_ln = line.new(sep_bar, high, sep_bar, low,
                              xloc = xloc.bar_index, extend = extend.both,
-                             color = day_line_color, width = day_line_width, style = day_line_style_str)
+                             color = colDay, width = dayWidth, style = dayStyleStr)
                     array.push(drawn_lines, day_ln)
 
                 // 添加星期标签（在两个分割线之间的中间位置）
-                // 步骤：创建标签 → 切换 yloc 为价格模式 → 设置固定 y 价格
-                if show_day_labels and not na(prev_sep) and not na(fixed_y)
+                if showWkd and not na(prev_sep) and not na(fixed_y)
                     int mid_bar = math.round((prev_sep + sep_bar) / 2)
-                    // 创建标签
                     label day_lbl = label.new(mid_bar, fixed_y,
                              text = sep_day_name,
                              xloc = xloc.bar_index,
                              color = color.new(color.gray, 100),
                              style = label.style_label_up,
-                             textcolor = day_label_color,
-                             size = size.small)
-                    // 切换 yloc 为价格定位模式，然后设置固定 y
+                             textcolor = colWkd,
+                             size = wkdSizeVal)
                     label.set_yloc(day_lbl, yloc.price)
                     label.set_y(day_lbl, fixed_y)
                     array.push(day_labels, day_lbl)
@@ -106,7 +107,7 @@ if barstate.islast
             prev_sep := sep_bar
 
         // 为最后一个交易日添加标签
-        if show_day_labels and not na(prev_sep) and not na(fixed_y) and bar_index - prev_sep < max_hist_offset
+        if showWkd and not na(prev_sep) and not na(fixed_y) and bar_index - prev_sep < max_hist_offset
             int mid_bar = math.round((prev_sep + bar_index) / 2)
             string current_day_name = dayofweek(ny_time) == dayofweek.monday ? "Mon" :
                                       dayofweek(ny_time) == dayofweek.tuesday ? "Tue" :
@@ -119,9 +120,8 @@ if barstate.islast
                      xloc = xloc.bar_index,
                      color = color.new(color.gray, 100),
                      style = label.style_label_up,
-                     textcolor = day_label_color,
-                     size = size.small)
-            // 切换 yloc 为价格定位模式，然后设置固定 y
+                     textcolor = colWkd,
+                     size = wkdSizeVal)
             label.set_yloc(day_lbl, yloc.price)
             label.set_y(day_lbl, fixed_y)
             array.push(day_labels, day_lbl)
