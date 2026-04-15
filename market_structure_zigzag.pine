@@ -1,6 +1,11 @@
 //@version=6
 indicator("Market Structure Zigzag", overlay=true, max_lines_count=500)
 
+// 显式设置历史缓冲区大小，防止超出限制
+max_bars_back(time, 500)
+max_bars_back(high, 500)
+max_bars_back(low, 500)
+
 // ============================================================================
 // 输入设置
 // ============================================================================
@@ -209,7 +214,7 @@ if barstate.islast
     string st_line_style = st_style == "虚线" ? line.style_dashed : st_style == "点线" ? line.style_dotted : line.style_solid
     string mt_line_style = mt_style == "虚线" ? line.style_dashed : mt_style == "点线" ? line.style_dotted : line.style_solid
 
-    int max_hist_offset = 800
+    int max_hist_offset = math.min(400, bar_index)
 
     // ========== 绘制短期结构 ==========
     if show_st and array.size(st_points) >= 2
