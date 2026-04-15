@@ -92,19 +92,19 @@ if barstate.islast
                     array.push(drawn_lines, day_ln)
 
                 // 添加星期标签（在两个分割线之间的中间位置）
-                // 步骤：创建标签 → 锁定 y 价格 → 移动 x 位置
+                // 步骤：创建标签 → 切换 yloc 为价格模式 → 设置固定 y 价格
                 if show_day_labels and not na(prev_sep) and not na(fixed_y)
                     int mid_bar = math.round((prev_sep + sep_bar) / 2)
-                    // 在任意位置创建标签
+                    // 创建标签
                     label day_lbl = label.new(mid_bar, fixed_y,
                              text = sep_day_name,
                              xloc = xloc.bar_index,
-                             yloc = yloc.belowbar,
                              color = color.new(color.gray, 100),
                              style = label.style_label_up,
                              textcolor = day_label_color,
                              size = size.small)
-                    // 锁定 y 价格，防止跟随 bar 变化
+                    // 切换 yloc 为价格定位模式，然后设置固定 y
+                    label.set_yloc(day_lbl, yloc.price)
                     label.set_y(day_lbl, fixed_y)
                     array.push(day_labels, day_lbl)
 
@@ -122,11 +122,11 @@ if barstate.islast
             label day_lbl = label.new(mid_bar, fixed_y,
                      text = current_day_name,
                      xloc = xloc.bar_index,
-                     yloc = yloc.belowbar,
                      color = color.new(color.gray, 100),
                      style = label.style_label_up,
                      textcolor = day_label_color,
                      size = size.small)
-            // 锁定 y 价格
+            // 切换 yloc 为价格定位模式，然后设置固定 y
+            label.set_yloc(day_lbl, yloc.price)
             label.set_y(day_lbl, fixed_y)
             array.push(day_labels, day_lbl)
