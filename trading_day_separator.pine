@@ -48,9 +48,7 @@ var array<line> drawn_lines = array.new<line>()
 var array<label> day_labels = array.new<label>()
 
 // 文字大小转换
-string wkdSizeVal = wkdSize == "tiny" ? size.tiny :
-                    wkdSize == "small" ? size.small :
-                    wkdSize == "normal" ? size.normal : size.large
+string wkdSizeVal = wkdSize == "tiny" ? size.tiny : wkdSize == "small" ? size.small : wkdSize == "normal" ? size.normal : size.large
 
 if barstate.islast
     // 删除旧线段和标签
