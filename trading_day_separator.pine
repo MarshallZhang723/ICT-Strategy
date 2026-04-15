@@ -19,7 +19,8 @@ string wkdSize  = input.string("small","星期文字大小",   options = ["tiny"
 // 交易日分割线检测（基于纽约时间 0 点）
 // ─────────────────────────────────────────────
 
-int nyHour = hour(time, "America/New_York")
+int ny_time = time
+int nyHour = hour(ny_time, "America/New_York")
 int nyHour_prev = nyHour[1]
 // 检测纽约时间进入 0 点（小时变成 0 表示新的一天开始）
 bool is_new_ny_day = na(nyHour_prev) ? false : nyHour == 0 and nyHour_prev != 0
