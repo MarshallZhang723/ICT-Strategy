@@ -209,7 +209,7 @@ if barstate.islast
     string st_line_style = st_style == "虚线" ? line.style_dashed : st_style == "点线" ? line.style_dotted : line.style_solid
     string mt_line_style = mt_style == "虚线" ? line.style_dashed : mt_style == "点线" ? line.style_dotted : line.style_solid
 
-    int max_hist_offset = 900
+    int max_hist_offset = 800
 
     // ========== 绘制短期结构 ==========
     if show_st and array.size(st_points) >= 2
