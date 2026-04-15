@@ -1,6 +1,11 @@
 //@version=6
 indicator("Trading Day Separator", overlay=true, max_lines_count=500)
 
+// 显式设置历史缓冲区大小，防止超出限制
+max_bars_back(time, 500)
+max_bars_back(high, 500)
+max_bars_back(low, 500)
+
 // ─────────────────────────────────────────────
 // 输入设置
 // ─────────────────────────────────────────────
@@ -65,7 +70,7 @@ if barstate.islast
     // 线型转换
     string dayStyleStr = dayStyle == "虚线" ? line.style_dashed : dayStyle == "点线" ? line.style_dotted : line.style_solid
 
-    int max_hist_offset = 900
+    int max_hist_offset = math.min(400, bar_index)
 
     // 绘制交易日分割线和星期标签
     if array.size(day_separators) >= 1
