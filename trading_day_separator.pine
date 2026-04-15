@@ -65,18 +65,11 @@ if barstate.islast
     // 绘制交易日分割线和星期标签
     if array.size(day_separators) >= 1
         int prev_sep = na
-        // 找到第一个在缓冲区内的分割线，作为标签的参考K线
-        int ref_bar = na
-        for i = 0 to array.size(day_separators) - 1
-            int sep_bar = array.get(day_separators, i)
-            if bar_index - sep_bar < max_hist_offset
-                ref_bar := sep_bar
-                break
 
-        // 计算所有标签的固定 y 价格（基于 ref_bar 的最低价）
-        float fixed_y = na
-        if not na(ref_bar) and bar_index - ref_bar >= 0
-            fixed_y := low[bar_index - ref_bar]
+        // 使用最近 N 根 K 线的最低价作为标签 y 位置
+        // 这样标签更可能在可见范围内
+        int lookback = math.min(500, bar_index)
+        float fixed_y = ta.lowest(low, lookback)
 
         for i = 0 to array.size(day_separators) - 1
             int sep_bar = array.get(day_separators, i)
