@@ -16,14 +16,14 @@ color  colWkd   = input.color(#78909c, "星期文字颜色",   group = GDAY)
 string wkdSize  = input.string("small","星期文字大小",   options = ["tiny", "small", "normal", "large"], group = GDAY)
 
 // ─────────────────────────────────────────────
-// 交易日分割线检测（基于纽约时间 0 点）
+// 交易日分割线检测（基于纽约日期变化）
 // ─────────────────────────────────────────────
 
 int ny_time = time(timeframe.period, "America/New_York")
-int ny_hour = hour(ny_time)
-int ny_hour_prev = ny_hour[1]
-// 检测纽约时间进入 0 点（小时变成 0 表示新的一天开始）
-bool is_new_ny_day = na(ny_hour_prev) ? false : ny_hour == 0 and ny_hour_prev != 0
+string ny_date = str.format("{0,date,yyyyMMdd}", ny_time)
+string ny_date_prev = ny_date[1]
+// 检测纽约日期变化（日期字符串不同表示新的一天）
+bool is_new_ny_day = na(ny_date_prev) ? false : ny_date != ny_date_prev
 
 // 记录交易日分割点和对应的星期几
 var array<int> day_separators = array.new<int>()
